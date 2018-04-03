@@ -16,8 +16,8 @@
 
 pragma solidity ^0.4.18;
 
-import "../Owned.sol";
-import "./interfaces/KeyServerSet.sol";
+import "./Owned.sol";
+import "./KeyServerSet.sol";
 
 
 // Single-owned KeyServerSet with migration support.
