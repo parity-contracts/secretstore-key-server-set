@@ -63,6 +63,12 @@ contract('Set', function(accounts) {
       .then(_contract => setContract = _contract)
     );
 
+    it("should reject direct payments", () => Promise
+      .resolve(defaultInitialization(setContract))
+      .then(c => c.sendTransaction({ value: 100 }))
+      .then(() => assert(false, "supposed to fail"), () => {})
+    );
+
     it("should return public from current set", () => Promise
       .resolve(defaultInitialization(setContract))
       .then(c => c.getCurrentKeyServerPublic(server1.address))
@@ -413,6 +419,107 @@ contract('Set', function(accounts) {
       .then(() => setContract.startMigration(migrationId, {from: server1.address}))
       .then(() => setContract.confirmMigration(migrationId, {from: server1.address}))
       .then(() => setContract.confirmMigration(migrationId, {from: server1.address}))
+      .then(() => assert(false, "supposed to fail"), () => {})
+    );
+
+    it("should fail when trying to get unexisting key server", () => Promise
+      .resolve(defaultInitializationWithRealAccounts(setContract))
+      .then(() => setContract.getCurrentKeyServer(100))
+      .then(() => assert(false, "supposed to fail"), () => {})
+    );
+
+    it("should fail when trying to add more than 256 servers", () => Promise
+      .resolve(defaultInitialization(setContract))
+      .then(() => {
+        // there are already 2 servers on the set => let's add more so there are 256 servers
+        var promises = [];
+        for (var i = 2; i < 256; ++i) {
+          var serverPublic = i.toString(16);
+          serverPublic = "0x" + "0".repeat(128 - serverPublic.length) + serverPublic;
+          promises.push(setContract.addKeyServer(serverPublic, "127.0.0.1:130" + i.toString()));
+        }
+        return Promise.all(promises);
+      })
+      .then(() => setContract.addKeyServer(server3.public, server3.ip))
+      .then(() => assert(false, "supposed to fail"), () => {})
+    );
+
+    it("should update currentLastChange block after migration", () => Promise
+      // check that current last change block is 0 after initialization is complete
+      .resolve(defaultInitializationWithRealAccounts(setContract))
+      .then(() => setContract.getCurrentLastChange())
+      .then(lastChange => assert.equal(lastChange, 0))
+      // add server to the new set and check that last change block is still the same
+      .then(() => setContract.addKeyServer(server3.public, server3.ip))
+      .then(() => setContract.getCurrentLastChange())
+      .then(lastChange => assert.equal(lastChange, 0))
+      // start migration and check that last change block is still the same
+      .then(() => setContract.startMigration(migrationId, {from: server1.address}))
+      .then(() => setContract.getCurrentLastChange())
+      .then(lastChange => assert.equal(lastChange, 0))
+      // complete migration and check that last change block differs from 0
+      .then(() => setContract.confirmMigration(migrationId, {from: server1.address}))
+      .then(() => setContract.getCurrentLastChange())
+      .then(lastChange => assert.equal(lastChange, 0))
+      .then(() => setContract.confirmMigration(migrationId, {from: server2.address}))
+      .then(() => setContract.getCurrentLastChange())
+      .then(lastChange => assert.equal(lastChange, 0))
+      .then(() => setContract.confirmMigration(migrationId, {from: server3.address}))
+      .then(() => setContract.getCurrentLastChange())
+      .then(lastChange => assert(lastChange > 0))
+    );
+
+    it("should return index for current key server", () => Promise
+      .resolve(defaultInitialization(setContract))
+      .then(() => setContract.getCurrentKeyServerIndex(server1.address))
+      .then(idx => assert.equal(idx, 0))
+      .then(() => setContract.getCurrentKeyServerIndex(server2.address))
+      .then(idx => assert.equal(idx, 1))
+    );
+
+    it("should fail when trying to get index of non-current key server", () => Promise
+      .resolve(defaultInitialization(setContract))
+      .then(() => setContract.addKeyServer(server3.public, server3.ip))
+      .then(() => setContract.getCurrentKeyServerIndex(server3.address))
+      .then(() => assert(false, "supposed to fail"), () => {})
+    );
+
+    it("should return current key servers count", () => Promise
+      // initially there are 2 key servers
+      .resolve(defaultInitialization(setContract))
+      .then(() => setContract.getCurrentKeyServersCount())
+      .then(count => assert.equal(count, 2))
+      // add 1 new key servers => still 2 key servers in current set
+      .then(() => setContract.addKeyServer(server3.public, server3.ip))
+      .then(() => setContract.getCurrentKeyServersCount())
+      .then(count => assert.equal(count, 2))
+      // start migration => still 2 key servers in current set
+      .then(() => setContract.startMigration(migrationId, {from: server1.address}))
+      .then(() => setContract.getCurrentKeyServersCount())
+      .then(count => assert.equal(count, 2))
+      // complete migration and check that there are 3 key servers in current set
+      .then(() => setContract.confirmMigration(migrationId, {from: server1.address}))
+      .then(() => setContract.getCurrentKeyServersCount())
+      .then(count => assert.equal(count, 2))
+      .then(() => setContract.confirmMigration(migrationId, {from: server2.address}))
+      .then(() => setContract.getCurrentKeyServersCount())
+      .then(count => assert.equal(count, 2))
+      .then(() => setContract.confirmMigration(migrationId, {from: server3.address}))
+      .then(() => setContract.getCurrentKeyServersCount())
+      .then(count => assert.equal(count, 3))
+    );
+
+    it("should return current key server address", () => Promise
+      .resolve(defaultInitialization(setContract))
+      .then(() => setContract.getCurrentKeyServer(0))
+      .then(a => assert.equal(a, server1.address))
+      .then(() => setContract.getCurrentKeyServer(1))
+      .then(a => assert.equal(a, server2.address))
+    );
+
+    it("should fail when trying to read non-current key server address", () => Promise
+      .resolve(defaultInitialization(setContract))
+      .then(() => setContract.getCurrentKeyServer(2))
       .then(() => assert(false, "supposed to fail"), () => {})
     );
   });
