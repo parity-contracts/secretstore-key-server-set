@@ -160,6 +160,18 @@ contract('Set', function(accounts) {
       .then(() => assert(false, "supposed to fail"), () => {})
     );
 
+    it("should be able to set new owner by current owner", () => Promise
+      .try(() => setContract.setOwner(nonOwner))
+      .then(() => setContract.addKeyServer(server3.public, server3.ip, {from: nonOwner}))
+      .then(() => setContract.removeKeyServer(server3.public, server3.ip))
+      .then(() => assert(false, "supposed to fail"), () => {})
+    );
+
+    it("should not be able to set new owner by non-current owner", () => Promise
+      .try(() => setContract.setOwner(nonOwner, {from: server2.address}))
+      .then(() => assert(false, "supposed to fail"), () => {})
+    );
+
     it("should return current key servers after initialization", () => Promise
       .resolve(defaultInitialization(setContract))
       .then(c => c.getCurrentKeyServers())
