@@ -64,6 +64,12 @@ contract OwnedKeyServerSetWithMigration is Owned, KeyServerSetWithMigration {
 	/// Required migration confirmations.
 	mapping(address => bool) migrationConfirmations;
 
+	modifier notAnEmptyString(string value) {
+		bytes memory castValue = bytes(value);
+		require(castValue.length != 0);
+		_;
+	}
+
 	/// Only if valid public is passed
 	modifier isValidPublic(bytes keyServerPublic) {
 		require(checkPublic(keyServerPublic));
@@ -270,7 +276,7 @@ contract OwnedKeyServerSetWithMigration is Owned, KeyServerSetWithMigration {
 	}
 
 	/// Add new key server to set.
-	function addKeyServer(bytes keyServerPublic, string keyServerIp) public onlyOwner isValidPublic(keyServerPublic) isNotOnNewSet(computeAddress(keyServerPublic)) {
+	function addKeyServer(bytes keyServerPublic, string keyServerIp) public onlyOwner notAnEmptyString(keyServerIp) isValidPublic(keyServerPublic) isNotOnNewSet(computeAddress(keyServerPublic)) {
 		// append to the new set
 		address keyServer = appendToSet(newSet, keyServerPublic, keyServerIp);
 		// also append to current set
