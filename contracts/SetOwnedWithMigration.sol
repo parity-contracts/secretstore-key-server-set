@@ -64,6 +64,12 @@ contract OwnedKeyServerSetWithMigration is Owned, KeyServerSetWithMigration {
 	/// Required migration confirmations.
 	mapping(address => bool) migrationConfirmations;
 
+	modifier notAnEmptyString(string value) {
+		bytes memory castValue = bytes(value);
+		require(castValue.length != 0);
+		_;
+	}
+
 	/// Only if valid public is passed
 	modifier isValidPublic(bytes keyServerPublic) {
 		require(checkPublic(keyServerPublic));
@@ -218,7 +224,7 @@ contract OwnedKeyServerSetWithMigration is Owned, KeyServerSetWithMigration {
 		migrationMaster = msg.sender;
 		migrationId = id;
 		copySet(migrationSet, newSet);
-		MigrationStarted();
+		emit MigrationStarted();
 	}
 
 	/// Confirm migration.
@@ -246,7 +252,7 @@ contract OwnedKeyServerSetWithMigration is Owned, KeyServerSetWithMigration {
 		clearSet(migrationSet);
 
 		// ...and fire completion event
-		MigrationCompleted();
+		emit MigrationCompleted();
 
 		// ...and update current server set change block
 		currentSetChangeBlock = block.number;
@@ -264,13 +270,13 @@ contract OwnedKeyServerSetWithMigration is Owned, KeyServerSetWithMigration {
 
 	/// Complete initialization. Before this function is called, all calls to addKeyServer/removeKeyServer
 	/// affect both newSet and currentSet.
-	function completeInitialization() public only_owner {
+	function completeInitialization() public onlyOwner {
 		require(!isInitialized);
 		isInitialized = true;
 	}
 
 	/// Add new key server to set.
-	function addKeyServer(bytes keyServerPublic, string keyServerIp) public only_owner isValidPublic(keyServerPublic) isNotOnNewSet(computeAddress(keyServerPublic)) {
+	function addKeyServer(bytes keyServerPublic, string keyServerIp) public onlyOwner notAnEmptyString(keyServerIp) isValidPublic(keyServerPublic) isNotOnNewSet(computeAddress(keyServerPublic)) {
 		// append to the new set
 		address keyServer = appendToSet(newSet, keyServerPublic, keyServerIp);
 		// also append to current set
@@ -278,11 +284,11 @@ contract OwnedKeyServerSetWithMigration is Owned, KeyServerSetWithMigration {
 			appendToSet(currentSet, keyServerPublic, keyServerIp);
 		}
 		// fire event
-		KeyServerAdded(keyServer);
+		emit KeyServerAdded(keyServer);
 	}
 
 	/// Remove key server from set.
-	function removeKeyServer(address keyServer) public only_owner isOnNewSet(keyServer) {
+	function removeKeyServer(address keyServer) public onlyOwner isOnNewSet(keyServer) {
 		// remove element from the new set
 		removeFromSet(newSet, keyServer);
 		// also remove from the current set
@@ -290,7 +296,7 @@ contract OwnedKeyServerSetWithMigration is Owned, KeyServerSetWithMigration {
 			removeFromSet(currentSet, keyServer);
 		}
 		// fire event
-		KeyServerRemoved(keyServer);
+		emit KeyServerRemoved(keyServer);
 	}
 
 	/// Compute address from public key.

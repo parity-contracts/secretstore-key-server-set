@@ -4,6 +4,16 @@ const SetOwnedWithMigration = artifacts.require("./OwnedKeyServerSetWithMigratio
 import {recoverPublic} from './helpers/crypto';
 
 contract('Set', function(accounts) {
+  const assertThrowsAsync = async (fn, msg) => {
+    try {
+      await fn();
+    } catch (err) {
+      assert(err.message.includes(msg), "Expected error to include: " + msg);
+      return;
+    }
+    assert.fail("Expected fn to throw");
+  };
+
   let owner = accounts[0];
   let nonOwner = accounts[1];
   let nonKeyServer = accounts[3];
@@ -221,6 +231,14 @@ contract('Set', function(accounts) {
       .then(c => c.addKeyServer(server2.public, server2.ip))
       .then(() => assert(false, "supposed to fail"), () => {})
     );
+
+    it("should not allow empty ip in addKeyServer", async () => {
+      const contract = await defaultInitialization(setContract);
+      await assertThrowsAsync(
+        () => contract.addKeyServer(server3.public, ""),
+        "revert"
+      );
+    });
 
     it("should accept removeKeyServer from owner", () => defaultInitialization(setContract)
       .then(c => c.removeKeyServer(server2.address))
